@@ -98,7 +98,11 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
 			}
             tableContext.writeRow(kuduRow, consistency, writeMode);
         } catch (Exception e) {
-            throw new IOException(e.getLocalizedMessage(), e);
+            if (tableInfo.isErrorBreak()) {
+                throw new IOException(e.getLocalizedMessage(), e);
+            } else {
+                LOG.warn(e.getMessage());
+            }
         }
     }
 

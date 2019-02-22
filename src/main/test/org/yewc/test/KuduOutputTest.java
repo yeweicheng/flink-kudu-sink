@@ -1,4 +1,4 @@
-package org.apache.flink.yewc;
+package org.yewc.test;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;

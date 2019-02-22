@@ -34,6 +34,8 @@ public class KuduColumnInfo implements Serializable {
     private Encoding encoding;
     private Compression compression;
 
+    private boolean systemColumn;
+
     private KuduColumnInfo(String name, Type type) {
         this.name = name;
         this.type = type;
@@ -45,18 +47,7 @@ public class KuduColumnInfo implements Serializable {
         this.defaultValue = null;
         this.encoding = Encoding.AUTO;
         this.compression = Compression.DEFAULT;
-    }
-
-    protected String name() {
-        return name;
-    }
-
-    protected boolean isRangeKey() {
-        return rangeKey;
-    }
-
-    protected boolean isHashKey() {
-        return hashKey;
+        this.systemColumn = false;
     }
 
     protected ColumnSchema columnSchema() {
@@ -121,6 +112,11 @@ public class KuduColumnInfo implements Serializable {
             return this;
         }
 
+        public Builder systemColumn(boolean systemColumn) {
+            this.column.systemColumn = systemColumn;
+            return this;
+        }
+
         public KuduColumnInfo build() {
             return column;
         }
@@ -158,4 +154,47 @@ public class KuduColumnInfo implements Serializable {
         }
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public boolean isKey() {
+        return key;
+    }
+
+    public boolean isRangeKey() {
+        return rangeKey;
+    }
+
+    public boolean isHashKey() {
+        return hashKey;
+    }
+
+    public boolean isNullable() {
+        return nullable;
+    }
+
+    public Object getDefaultValue() {
+        return defaultValue;
+    }
+
+    public int getBlockSize() {
+        return blockSize;
+    }
+
+    public Encoding getEncoding() {
+        return encoding;
+    }
+
+    public Compression getCompression() {
+        return compression;
+    }
+
+    public boolean isSystemColumn() {
+        return systemColumn;
+    }
 }

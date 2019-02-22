@@ -10,8 +10,8 @@ repositories {
 }
 
 jar {
-    manifest {  //incubating版本，以后版本可能会改API
-        attributes("Main-Class": "org.apache.flink.yewc.KuduSinkTest",
+    manifest {
+        attributes("Main-Class": "org.yewc.test.KuduSinkTest",
                 "Implementation-Title": "Gradle")
     }
     into('lib') {
@@ -25,4 +25,6 @@ dependencies {
     compile group: 'org.apache.kudu', name: 'kudu-client', version: '1.4.0'
     compile group: 'org.apache.flink', name: 'flink-streaming-java_2.11', version: '1.7.1'
     compile group: 'org.json', name: 'json', version: '20180813'
+    compile group: 'org.slf4j', name: 'slf4j-nop', version: '1.7.25'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 }

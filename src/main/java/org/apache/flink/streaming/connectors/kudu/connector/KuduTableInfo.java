@@ -28,16 +28,19 @@ public class KuduTableInfo implements Serializable {
 
     private static final Integer DEFAULT_REPLICAS = 1;
     private static final boolean DEFAULT_CREATE_IF_NOT_EXIST = false;
+    private static final boolean DEFAULT_ERROR_BREAK = true;
 
     private Integer replicas;
     private String name;
     private boolean createIfNotExist;
+    private boolean errorBreak;
     private List<KuduColumnInfo> columns;
 
     private KuduTableInfo(String name){
         this.name = name;
         this.replicas = DEFAULT_REPLICAS;
         this.createIfNotExist = DEFAULT_CREATE_IF_NOT_EXIST;
+        this.errorBreak = DEFAULT_ERROR_BREAK;
         this.columns = new ArrayList<>();
     }
 
@@ -68,10 +71,10 @@ public class KuduTableInfo implements Serializable {
             List<String> hashKeys = new ArrayList<>();
             for(KuduColumnInfo column : columns){
                 if(column.isRangeKey()){
-                    rangeKeys.add(column.name());
+                    rangeKeys.add(column.getName());
                 }
                 if(column.isHashKey()){
-                    hashKeys.add(column.name());
+                    hashKeys.add(column.getName());
                 }
             }
             options.setRangePartitionColumns(rangeKeys);
@@ -86,6 +89,14 @@ public class KuduTableInfo implements Serializable {
     }
     public boolean hasColummns(){
         return (columns!=null && columns.size()>0);
+    }
+
+    public boolean isErrorBreak() {
+        return errorBreak;
+    }
+
+    public void setErrorBreak(boolean errorBreak) {
+        this.errorBreak = errorBreak;
     }
 
     public static class Builder {
@@ -123,6 +134,11 @@ public class KuduTableInfo implements Serializable {
         public Builder addColumn(KuduColumnInfo column) {
             if(column==null) return this;
             this.table.columns.add(column);
+            return this;
+        }
+
+        public Builder errorBreak(boolean errorBreak) {
+            this.table.errorBreak = errorBreak;
             return this;
         }
 
