@@ -89,6 +89,9 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     @Override
     public void invoke(OUT row) throws Exception {
         try {
+            if (row == null) {
+                return;
+            }
 			KuduRow kuduRow = new KuduRow(((Row) row).getArity());
 			for (int i = 0; i < ((Row) row).getArity(); i++) {
 				kuduRow.setField(i, ((Row) row).getField(i));

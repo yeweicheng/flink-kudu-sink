@@ -25,17 +25,13 @@ public class KuduSinkTest {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger("KuduSinkTest");
 
-	public static final String BROKERS = "10.1.170.14:9092,10.1.170.163:9092,10.1.170.165:9092";
-	public static final String TOPIC = "fx.user.chat.ext";
-	public static final String KUDU_MASTER = "10.1.174.232,10.1.174.241,10.1.174.242";
-	public static final String TABLE = "fx_user_chat_ext";
-	public static final String HEAD_SPLIT = "\t";
+	private static final boolean ERROR_BREAK = false;
 
-//	public static final String BROKERS = "10.16.6.191:9092";
-//	public static final String TOPIC = "test2";
-//	public static final String KUDU_MASTER = "10.17.4.11";
-//	public static final String TABLE = "fx_user_chat_ext";
-//	public static final String HEAD_SPLIT = " ";
+	public static final String BROKERS = "10.16.6.191:9092";
+	public static final String TOPIC = "test2";
+	public static final String KUDU_MASTER = "10.17.4.11";
+	public static final String TABLE = "fx_user_chat_ext";
+	public static final String HEAD_SPLIT = " ";
 
 	public static void main(String[] args) throws Exception {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -60,8 +56,6 @@ public class KuduSinkTest {
 
 		KuduTableInfo tableInfo = builder.build();
 
-		final ObjectMapper objectMapper = new ObjectMapper();
-
 		Properties properties = new Properties();
 		properties.setProperty("bootstrap.servers", BROKERS);
 		properties.setProperty("group.id", "kudu-test");
@@ -77,10 +71,11 @@ public class KuduSinkTest {
 					return null;
 				}
 
-				String data[] = value.split("\\{", 2);
-				String dt = sdf.format(new Date(Long.parseLong(data[0].split(HEAD_SPLIT)[0])*1000));
-
+				String[] data = null;
 				try {
+					data = value.split("\\{", 2);
+					String dt = sdf.format(new Date(Long.parseLong(data[0].split(HEAD_SPLIT)[0])*1000));
+
 					JSONObject jo = new JSONObject("{" + data[1]);
 					final Set<String> keys = cols.keySet();
 					KuduRow row = new KuduRow(keys.size() + 1);
@@ -106,9 +101,14 @@ public class KuduSinkTest {
 					return row;
 				} catch (Exception e) {
 					Exception customException = new RuntimeException("error msg: {" + data[1]);
-					customException.addSuppressed(e);
-					throw customException;
+					if (ERROR_BREAK) {
+						customException.addSuppressed(e);
+						throw customException;
+					} else {
+						LOGGER.error(customException.getMessage());
+					}
 				}
+				return null;
 			}
 		}).addSink(new KuduSink<>(KUDU_MASTER, tableInfo));
 
