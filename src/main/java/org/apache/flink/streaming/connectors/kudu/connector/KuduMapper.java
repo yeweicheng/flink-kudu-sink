@@ -96,7 +96,7 @@ public final class KuduMapper {
                 Type type = schema.getColumnByIndex(i).getType();
                 switch (type) {
                     case STRING:
-                        partialRow.addString(columnName, (String) value);
+                        partialRow.addString(columnName, value.toString());
                         break;
                     case FLOAT:
                         partialRow.addFloat(columnName, (Float) value);

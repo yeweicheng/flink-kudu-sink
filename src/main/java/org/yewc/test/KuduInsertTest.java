@@ -7,7 +7,6 @@ import org.apache.flink.streaming.connectors.kudu.connector.KuduRow;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.types.Row;
 import org.apache.kudu.Type;
-import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -59,41 +58,6 @@ public class KuduInsertTest {
             KuduRow row = new KuduRow(data.length);
             for (int i = 0; i < data.length; i++) {
                 row.setField(i, data[i]);
-            }
-
-            return row;
-        } catch (Exception e) {
-            throw e;
-        }
-    }
-
-    public static Row getRowJson(String value, Map<String, KuduColumnInfo> cols) throws Exception {
-        if (StringUtils.isBlank(value) || !value.contains("{")) {
-            return null;
-        }
-
-        try {
-            JSONObject jo = new JSONObject(value);
-
-            final Set<String> keys = cols.keySet();
-            KuduRow row = new KuduRow(keys.size());
-
-            int i = 0;
-            Object colValue;
-            for (Iterator<String> iter = keys.iterator(); iter.hasNext();) {
-                String key = iter.next();
-
-                if (jo.has(key)) {
-                    colValue = jo.get(key);
-                    if (colValue instanceof String) {
-                        colValue = colValue.toString().replaceAll("(\r\n|\r|\n|\n\r)", "<br>");
-                    }
-                } else {
-                    colValue = null;
-                }
-
-                row.setField(i, colValue);
-                i++;
             }
 
             return row;

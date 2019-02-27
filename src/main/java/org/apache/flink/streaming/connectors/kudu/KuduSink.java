@@ -16,11 +16,16 @@
  */
 package org.apache.flink.streaming.connectors.kudu;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduRow;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -28,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class KuduSink<OUT> extends RichSinkFunction<OUT> {
+public class KuduSink<OUT> extends RichSinkFunction<OUT> implements AppendStreamTableSink<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KuduOutputFormat.class);
 
@@ -36,6 +41,8 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     private KuduTableInfo tableInfo;
     private KuduConnector.Consistency consistency;
     private KuduConnector.WriteMode writeMode;
+    private String[] fieldNames;
+    private TypeInformation[] fieldTypes;
 
     private transient KuduConnector tableContext;
 
@@ -99,7 +106,7 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
             tableContext.writeRow(kuduRow, consistency, writeMode);
         } catch (Exception e) {
             if (tableInfo.isErrorBreak()) {
-                throw new IOException(e.getLocalizedMessage(), e);
+                throw new IOException(row.toString() + "\n" + e.getLocalizedMessage(), e);
             } else {
                 LOG.warn(e.getMessage());
             }
@@ -113,6 +120,40 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
             this.tableContext.close();
         } catch (Exception e) {
             throw new IOException(e.getLocalizedMessage(), e);
+        }
+    }
+
+    @Override
+    public TypeInformation<OUT> getOutputType() {
+        return (TypeInformation<OUT>) new RowTypeInfo(fieldTypes);
+    }
+
+    @Override
+    public String[] getFieldNames() {
+        return this.fieldNames;
+    }
+
+    @Override
+    public TypeInformation<?>[] getFieldTypes() {
+        return this.fieldTypes;
+    }
+
+    @Override
+    public KuduSink<OUT> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        KuduSink kuduSink = new KuduSink(this.kuduMasters, this.tableInfo);
+        kuduSink.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
+        kuduSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
+        Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
+                "Number of provided field names and types does not match.");
+        return kuduSink;
+    }
+
+    @Override
+    public void emitDataStream(DataStream<OUT> dataStream) {
+        try {
+            dataStream.addSink(this);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }
