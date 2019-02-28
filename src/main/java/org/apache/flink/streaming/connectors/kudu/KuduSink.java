@@ -24,16 +24,15 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduRow;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.kudu.client.AsyncKuduSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class KuduSink<OUT> extends RichSinkFunction<OUT> implements AppendStreamTableSink<OUT> {
+public class KuduSink<OUT> extends RichSinkFunction<OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KuduOutputFormat.class);
 
@@ -41,13 +40,17 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> implements AppendStream
     private KuduTableInfo tableInfo;
     private KuduConnector.Consistency consistency;
     private KuduConnector.WriteMode writeMode;
-    private String[] fieldNames;
-    private TypeInformation[] fieldTypes;
+    private AsyncKuduSession.FlushMode flushMode;
 
     private transient KuduConnector tableContext;
 
+    public KuduSink() {}
 
     public KuduSink(String kuduMasters, KuduTableInfo tableInfo) {
+        init(kuduMasters, tableInfo);
+    }
+
+    public KuduSink<OUT> init(String kuduMasters, KuduTableInfo tableInfo) {
         Preconditions.checkNotNull(kuduMasters,"kuduMasters could not be null");
         this.kuduMasters = kuduMasters;
 
@@ -55,6 +58,27 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> implements AppendStream
         this.tableInfo = tableInfo;
         this.consistency = KuduConnector.Consistency.STRONG;
         this.writeMode = KuduConnector.WriteMode.UPSERT;
+
+        return this;
+    }
+
+    public KuduSink<OUT> init(String kuduMasters, KuduTableInfo tableInfo,
+                              KuduConnector.Consistency consistency, KuduConnector.WriteMode writeMode) {
+        Preconditions.checkNotNull(kuduMasters,"kuduMasters could not be null");
+        this.kuduMasters = kuduMasters;
+
+        Preconditions.checkNotNull(tableInfo,"tableInfo could not be null");
+        this.tableInfo = tableInfo;
+        this.consistency = consistency;
+        this.writeMode = writeMode;
+
+        return this;
+    }
+
+    public static KuduSink addSink(DataStream dataStream) {
+        KuduSink kuduSink = new KuduSink();
+        dataStream.addSink(kuduSink);
+        return kuduSink;
     }
 
     public KuduSink<OUT> withEventualConsistency() {
@@ -120,40 +144,6 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> implements AppendStream
             this.tableContext.close();
         } catch (Exception e) {
             throw new IOException(e.getLocalizedMessage(), e);
-        }
-    }
-
-    @Override
-    public TypeInformation<OUT> getOutputType() {
-        return (TypeInformation<OUT>) new RowTypeInfo(fieldTypes);
-    }
-
-    @Override
-    public String[] getFieldNames() {
-        return this.fieldNames;
-    }
-
-    @Override
-    public TypeInformation<?>[] getFieldTypes() {
-        return this.fieldTypes;
-    }
-
-    @Override
-    public KuduSink<OUT> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-        KuduSink kuduSink = new KuduSink(this.kuduMasters, this.tableInfo);
-        kuduSink.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
-        kuduSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
-        Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-                "Number of provided field names and types does not match.");
-        return kuduSink;
-    }
-
-    @Override
-    public void emitDataStream(DataStream<OUT> dataStream) {
-        try {
-            dataStream.addSink(this);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 }

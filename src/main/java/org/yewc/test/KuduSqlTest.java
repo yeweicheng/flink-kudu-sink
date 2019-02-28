@@ -5,8 +5,9 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
-import org.apache.flink.streaming.connectors.kudu.KuduSink;
+import org.apache.flink.streaming.connectors.kudu.FxKuduUpsertTableSink;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduColumnInfo;
+import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -42,6 +43,8 @@ public class KuduSqlTest {
 	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(10000);
+
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 		KuduTableInfo.Builder builder = KuduTableInfo.Builder
@@ -72,12 +75,12 @@ public class KuduSqlTest {
 		DataStream<Row> stream = env
 				.addSource(myConsumer).returns(Types.ROW(fieldTypes));
 
-		tableEnv.registerDataStream("my_kudu_source", stream);
+		tableEnv.registerDataStream("my_kudu_source", stream, "dt,system_default_id,productid,deviceid,imei,imsi,time,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3");
 
-		KuduSink sink = new KuduSink<>(KUDU_MASTER, tableInfo).withEventualConsistency().withInsertWriteMode();
+		FxKuduUpsertTableSink sink = new FxKuduUpsertTableSink(null, KUDU_MASTER, tableInfo, KuduConnector.Consistency.EVENTUAL, KuduConnector.WriteMode.INSERT);
 		tableEnv.registerTableSink("my_kudu_sink", fieldNames, fieldTypes, sink);
 
-		tableEnv.sqlUpdate("insert into my_kudu_sink select * from my_kudu_source");
+		tableEnv.sqlUpdate("insert into my_kudu_sink select dt,system_default_id,productid,deviceid,imei,imsi,`time`,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3 from my_kudu_source group by dt,system_default_id,productid,deviceid,imei,imsi,`time`,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3");
 
 		env.execute(TABLE);
 	}

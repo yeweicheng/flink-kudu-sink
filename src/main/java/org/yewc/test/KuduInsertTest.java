@@ -10,7 +10,8 @@ import org.apache.kudu.Type;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class KuduInsertTest {
 
@@ -27,7 +28,7 @@ public class KuduInsertTest {
         }
         final KuduTableInfo tableInfo = builder.build();
 
-        KuduSink<KuduRow> kuduSink = new KuduSink<>("10.17.4.11", tableInfo);
+        KuduSink kuduSink = new KuduSink("10.17.4.11", tableInfo);
 
         // ======================================================
 

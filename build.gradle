@@ -11,7 +11,7 @@ repositories {
 
 jar {
     manifest {
-        attributes("Main-Class": "org.yewc.test.KuduSinkTest",
+        attributes("Main-Class": "org.yewc.test.KuduSqlTest",
                 "Implementation-Title": "Gradle")
     }
     into('lib') {
@@ -25,7 +25,6 @@ dependencies {
     compile group: 'org.apache.flink', name: 'flink-streaming-java_2.11', version: '1.7.1'
     compile group: 'org.apache.flink', name: 'flink-table_2.11', version: '1.7.1'
     compile group: 'org.apache.flink', name: 'flink-streaming-scala_2.11', version: '1.7.1'
-    compile group: 'org.apache.flink', name: 'flink-avro', version: '1.7.1'
 
     compile group: 'org.apache.kudu', name: 'kudu-client', version: '1.8.0'
     compile group: 'com.alibaba', name: 'fastjson', version: '1.2.56'

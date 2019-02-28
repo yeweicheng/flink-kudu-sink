@@ -1,13 +1,10 @@
 package org.yewc.test;
 
-import com.alibaba.fastjson.JSONObject;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kudu.KuduSink;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduColumnInfo;
-import org.apache.flink.streaming.connectors.kudu.connector.KuduRow;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.types.Row;
 import org.apache.kudu.Type;
@@ -15,7 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yewc.test.schema.FxJSONDeserializationSchema;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
 
 public class KuduSinkTest {
 
@@ -62,7 +61,7 @@ public class KuduSinkTest {
 						properties);
 		myConsumer.setStartFromGroupOffsets();
 
-		KuduSink sink = new KuduSink<>(KUDU_MASTER, tableInfo).withEventualConsistency().withInsertWriteMode();
+		KuduSink sink = new KuduSink(KUDU_MASTER, tableInfo).withEventualConsistency().withInsertWriteMode();
 
 		DataStream<Row> stream = env
 				.addSource(myConsumer);
