@@ -34,6 +34,12 @@ public class KuduConnector implements AutoCloseable {
 
     private AsyncKuduClient client;
     private KuduTable table;
+    private AsyncKuduSession asyncSession;
+    private KuduSession session;
+    private long counter = 0;
+    private SessionConfiguration.FlushMode flushMode = SessionConfiguration.FlushMode.MANUAL_FLUSH;
+    private int flushInterval = 1000;
+    private int mutationBufferSpace = 1000;
 
     public KuduConnector(String kuduMasters, KuduTableInfo tableInfo) throws IOException {
         client = client(kuduMasters);
@@ -89,33 +95,64 @@ public class KuduConnector implements AutoCloseable {
         return tokenBuilder.build();
     }
 
-    public boolean writeRow(KuduRow row, Consistency consistency, WriteMode writeMode) throws Exception {
+    public void writeRow(KuduRow row, Consistency consistency, WriteMode writeMode) throws Exception {
         final Operation operation = KuduMapper.toOperation(table, writeMode, row);
 
         if (Consistency.EVENTUAL.equals(consistency)) {
-            AsyncKuduSession session = client.newSession();
-            session.apply(operation);
-            session.flush();
-            return session.close().addCallback(new ResponseCallback()).join();
+            if (asyncSession == null || asyncSession.isClosed()) {
+                asyncSession = client.newSession();
+                asyncSession.setFlushMode(flushMode);
+                asyncSession.setMutationBufferSpace(mutationBufferSpace);
+                asyncSession.setFlushInterval(flushInterval);
+            }
+            asyncSession.apply(operation);
+            counter++;
+
+            if (counter == mutationBufferSpace) {
+                asyncSession.close().addCallback(new ResponseCallback()).join();
+                counter = 0;
+            }
         } else {
-            KuduSession session = client.syncClient().newSession();
+            if (session == null || session.isClosed()) {
+                session = client.syncClient().newSession();
+                session.setFlushMode(flushMode);
+                session.setMutationBufferSpace(mutationBufferSpace);
+                session.setFlushInterval(flushInterval);
+            }
             session.apply(operation);
-            session.flush();
-            return processResponse(session.close());
+
+            counter++;
+
+            if (counter == mutationBufferSpace) {
+                processResponse(session.close());
+                counter = 0;
+            }
         }
     }
 
     @Override
     public void close() throws Exception {
+        LOG.warn("kudu client closing");
         if (client == null) return;
 
+        if (asyncSession != null && !asyncSession.isClosed()) {
+            asyncSession.close().addCallback(new ResponseCallback()).join();
+        }
+
+        if (session != null && !session.isClosed()) {
+            processResponse(session.close());
+        }
+
         client.close();
+        LOG.warn("kudu client close finished");
     }
 
     private Boolean processResponse(List<OperationResponse> operationResponses) {
         Boolean isOk = operationResponses.isEmpty();
         for(OperationResponse operationResponse : operationResponses) {
-            logResponseError(operationResponse.getRowError());
+            if (operationResponse.getRowError() != null) {
+                logResponseError(operationResponse.getRowError());
+            }
         }
         return isOk;
     }
@@ -129,5 +166,20 @@ public class KuduConnector implements AutoCloseable {
         public Boolean call(List<OperationResponse> operationResponses) {
             return processResponse(operationResponses);
         }
+    }
+
+    public KuduConnector setFlushInterval(int flunshInterval) {
+        this.flushInterval = flunshInterval;
+        return this;
+    }
+
+    public KuduConnector setMutationBufferSpace(int mutationBufferSpace) {
+        this.mutationBufferSpace = mutationBufferSpace;
+        return this;
+    }
+
+    public KuduConnector setFlushMode(SessionConfiguration.FlushMode flushMode) {
+        this.flushMode = flushMode;
+        return this;
     }
 }

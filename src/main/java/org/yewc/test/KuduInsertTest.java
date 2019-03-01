@@ -20,7 +20,7 @@ public class KuduInsertTest {
         String value = "2019-02-20<|>262079853<|>哦，爸爸怎么了，<|>2019-02-20 20:51:44<|>501<|>7<|>1248165<|>900407294<|>Hyan海燕呐<|>17<|>1203234543<|>1203234543<|>HappyBoss明哥<|>18<|>1<|>1.193.169.0<|>1<|>0<|><|>";
 
         KuduTableInfo.Builder builder = KuduTableInfo.Builder
-                .create("fx_user_chat_ext");
+                .create("insert_test_table");
 
         final Map<String, KuduColumnInfo> cols = getColumns();
         for (String col : cols.keySet()) {
@@ -28,10 +28,13 @@ public class KuduInsertTest {
         }
         final KuduTableInfo tableInfo = builder.build();
 
-        KuduSink kuduSink = new KuduSink("10.17.4.11", tableInfo);
+        KuduSink kuduSink = new KuduSink("10.17.4.11", tableInfo)
+                .withEventualConsistency()
+                .setMutationBufferSpace(20000);
 
         // ======================================================
 
+        long startAll = System.currentTimeMillis();
         kuduSink.open(null);
 
 //        kuduSink.invoke((KuduRow) getRowLine(value, "<\\|>", cols));
@@ -40,13 +43,13 @@ public class KuduInsertTest {
         int counter = 0;
         String line;
         while ((line = br.readLine()) != null) {
-            long s = System.currentTimeMillis();
             kuduSink.invoke((KuduRow) getRowLine(line, "<\\|>", cols));
-            long e = System.currentTimeMillis();
-            System.out.println("counter: "+ (counter++) + ", use time: " + (e - s));
         }
 
+
         kuduSink.close();
+        long endAll = System.currentTimeMillis();
+        System.out.println("all use time: " + (endAll - startAll));
     }
 
     public static Row getRowLine(String value, String split, Map<String, KuduColumnInfo> cols) throws Exception {

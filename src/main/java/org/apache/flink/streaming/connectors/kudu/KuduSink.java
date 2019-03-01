@@ -27,6 +27,7 @@ import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.kudu.client.AsyncKuduSession;
+import org.apache.kudu.client.SessionConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,9 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     private KuduTableInfo tableInfo;
     private KuduConnector.Consistency consistency;
     private KuduConnector.WriteMode writeMode;
-    private AsyncKuduSession.FlushMode flushMode;
+    private SessionConfiguration.FlushMode flushMode = SessionConfiguration.FlushMode.MANUAL_FLUSH;
+    private int flushInterval = 1000;
+    private int mutationBufferSpace = 1000;
 
     private transient KuduConnector tableContext;
 
@@ -106,6 +109,21 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
         return this;
     }
 
+    public KuduSink<OUT> setFlushMode(SessionConfiguration.FlushMode flushMode) {
+        this.flushMode = flushMode;
+        return this;
+    }
+
+    public KuduSink<OUT> setFlushInterval(int flushInterval) {
+        this.flushInterval = flushInterval;
+        return this;
+    }
+
+    public KuduSink<OUT> setMutationBufferSpace(int mutationBufferSpace) {
+        this.mutationBufferSpace = mutationBufferSpace;
+        return this;
+    }
+
     @Override
     public void open(Configuration parameters) throws IOException {
         startTableContext();
@@ -113,7 +131,10 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
 
     private void startTableContext() throws IOException {
         if (tableContext != null) return;
-        tableContext = new KuduConnector(kuduMasters, tableInfo);
+        tableContext = new KuduConnector(kuduMasters, tableInfo)
+                .setFlushMode(flushMode)
+                .setMutationBufferSpace(mutationBufferSpace)
+                .setFlushInterval(flushInterval);
     }
 
 
