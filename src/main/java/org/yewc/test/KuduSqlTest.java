@@ -8,6 +8,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kudu.FxKuduUpsertTableSink;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduColumnInfo;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
+import org.apache.flink.streaming.connectors.kudu.connector.KuduEntity;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -77,9 +78,14 @@ public class KuduSqlTest {
 
 		tableEnv.registerDataStream("my_kudu_source", stream, "dt,system_default_id,productid,deviceid,imei,imsi,time,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3");
 
-		FxKuduUpsertTableSink sink = new FxKuduUpsertTableSink(null, KUDU_MASTER, tableInfo, KuduConnector.Consistency.EVENTUAL, KuduConnector.WriteMode.INSERT);
-		sink.setFlushInterval(1000);
-		sink.setMutationBufferSpace(1000);
+		KuduEntity entity = new KuduEntity();
+		entity.setKuduMasters(KUDU_MASTER);
+		entity.setTableInfo(tableInfo);
+		entity.setFlushInterval(1000);
+		entity.setMutationBufferSpace(1000);
+
+		FxKuduUpsertTableSink sink = new FxKuduUpsertTableSink(entity);
+
 		tableEnv.registerTableSink("my_kudu_sink", fieldNames, fieldTypes, sink);
 
 		tableEnv.sqlUpdate("insert into my_kudu_sink select dt,system_default_id,productid,deviceid,imei,imsi,`time`,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3 from my_kudu_source group by dt,system_default_id,productid,deviceid,imei,imsi,`time`,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3");
