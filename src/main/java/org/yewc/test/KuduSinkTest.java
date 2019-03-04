@@ -54,14 +54,18 @@ public class KuduSinkTest {
 
 		Properties properties = new Properties();
 		properties.setProperty("bootstrap.servers", BROKERS);
-		properties.setProperty("group.id", "kudu-org.yewc.test");
+		properties.setProperty("group.id", "kudu-test");
 		FlinkKafkaConsumer010<Row> myConsumer =
 				new FlinkKafkaConsumer010<>(TOPIC,
 						new FxJSONDeserializationSchema( true, "logweb", HEAD_SPLIT, DATE_FORMAT, cols),
 						properties);
 		myConsumer.setStartFromGroupOffsets();
 
-		KuduSink sink = new KuduSink(KUDU_MASTER, tableInfo).withEventualConsistency().withInsertWriteMode();
+		KuduSink sink = new KuduSink(KUDU_MASTER, tableInfo)
+				.withEventualConsistency()
+				.withInsertWriteMode()
+				.withEventualConsistency()
+				.setMutationBufferSpace(20000);
 
 		DataStream<Row> stream = env
 				.addSource(myConsumer);

@@ -23,6 +23,8 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
     private String[] fieldNames;
     private TypeInformation[] fieldTypes;
     private TableSchema schema;
+    private int flushInterval = 1000;
+    private int mutationBufferSpace = 1000;
 
     public FxKuduUpsertTableSink(TableSchema schema, String kuduMasters, KuduTableInfo tableInfo,
                                  KuduConnector.Consistency consistency, KuduConnector.WriteMode writeMode) {
@@ -55,7 +57,8 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
     public void emitDataStream(DataStream<Tuple2<Boolean, Row>> ds) {
         DataStream<Row> dataStream = ds.map((MapFunction<Tuple2<Boolean, Row>, Row>) value -> value.f1)
                 .returns(new RowTypeInfo(schema.getFieldTypes(), schema.getFieldNames()));
-        KuduSink.addSink(dataStream).init(this.kuduMasters, this.tableInfo, this.consistency, this.writeMode);
+        KuduSink.addSink(dataStream).init(this.kuduMasters, this.tableInfo, this.consistency, this.writeMode)
+        .setFlushInterval(flushInterval).setMutationBufferSpace(mutationBufferSpace);
     }
 
     @Override
@@ -92,5 +95,13 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
         kuduSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
 
         return kuduSink;
+    }
+
+    public void setFlushInterval(int flushInterval) {
+        this.flushInterval = flushInterval;
+    }
+
+    public void setMutationBufferSpace(int mutationBufferSpace) {
+        this.mutationBufferSpace = mutationBufferSpace;
     }
 }
