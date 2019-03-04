@@ -7,6 +7,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
+import org.apache.flink.streaming.connectors.kudu.connector.KuduEntity;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.TableSink;
@@ -16,26 +17,20 @@ import org.apache.flink.util.Preconditions;
 
 public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
 
-    private String kuduMasters;
+    private KuduEntity kuduEntity;
     private KuduTableInfo tableInfo;
-    private KuduConnector.Consistency consistency;
-    private KuduConnector.WriteMode writeMode;
+    private TableSchema schema;
     private String[] fieldNames;
     private TypeInformation[] fieldTypes;
-    private TableSchema schema;
-    private int flushInterval = 1000;
-    private int mutationBufferSpace = 1000;
 
-    public FxKuduUpsertTableSink(TableSchema schema, String kuduMasters, KuduTableInfo tableInfo,
-                                 KuduConnector.Consistency consistency, KuduConnector.WriteMode writeMode) {
-        Preconditions.checkNotNull(kuduMasters, "kuduMasters could not be null");
-        this.kuduMasters = kuduMasters;
-        this.schema = schema;
+    public FxKuduUpsertTableSink(KuduEntity kuduEntity) {
 
-        Preconditions.checkNotNull(tableInfo, "tableInfo could not be null");
-        this.tableInfo = tableInfo;
-        this.consistency = consistency;
-        this.writeMode = writeMode;
+        Preconditions.checkNotNull(kuduEntity.getKuduMasters(), "kuduMasters could not be null");
+        this.kuduEntity = kuduEntity;
+        this.schema = kuduEntity.getSchema();
+
+        Preconditions.checkNotNull(kuduEntity.getTableInfo(), "tableInfo could not be null");
+        this.tableInfo = kuduEntity.getTableInfo();
     }
 
     @Override
@@ -50,15 +45,16 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
 
     @Override
     public TypeInformation<Row> getRecordType() {
-        return this.schema.toRowType();
+        return this.kuduEntity.getSchema().toRowType();
     }
 
     @Override
     public void emitDataStream(DataStream<Tuple2<Boolean, Row>> ds) {
         DataStream<Row> dataStream = ds.map((MapFunction<Tuple2<Boolean, Row>, Row>) value -> value.f1)
-                .returns(new RowTypeInfo(schema.getFieldTypes(), schema.getFieldNames()));
-        KuduSink.addSink(dataStream).init(this.kuduMasters, this.tableInfo, this.consistency, this.writeMode)
-        .setFlushInterval(flushInterval).setMutationBufferSpace(mutationBufferSpace);
+                .returns(new RowTypeInfo(this.schema.getFieldTypes(), this.schema.getFieldNames()));
+        KuduSink.addSink(dataStream).init(this.kuduEntity.getKuduMasters(), this.tableInfo,
+                this.kuduEntity.getConsistency(), this.kuduEntity.getWriteMode())
+        .setFlushInterval(this.kuduEntity.getFlushInterval()).setMutationBufferSpace(this.kuduEntity.getMutationBufferSpace());
     }
 
     @Override
@@ -89,19 +85,10 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
             this.schema = builder.build();
         }
 
-        FxKuduUpsertTableSink kuduSink = new FxKuduUpsertTableSink(this.schema, this.kuduMasters, this.tableInfo,
-                this.consistency, this.writeMode);
+        FxKuduUpsertTableSink kuduSink = new FxKuduUpsertTableSink(this.kuduEntity);
         kuduSink.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
         kuduSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
 
         return kuduSink;
-    }
-
-    public void setFlushInterval(int flushInterval) {
-        this.flushInterval = flushInterval;
-    }
-
-    public void setMutationBufferSpace(int mutationBufferSpace) {
-        this.mutationBufferSpace = mutationBufferSpace;
     }
 }
