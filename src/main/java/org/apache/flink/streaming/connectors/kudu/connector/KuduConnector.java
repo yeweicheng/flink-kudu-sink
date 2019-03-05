@@ -149,11 +149,14 @@ public class KuduConnector implements AutoCloseable {
 
     private Boolean processResponse(List<OperationResponse> operationResponses) {
         Boolean isOk = operationResponses.isEmpty();
-        for(OperationResponse operationResponse : operationResponses) {
-            if (operationResponse.getRowError() != null) {
-                logResponseError(operationResponse.getRowError());
-            }
+        if (!isOk && operationResponses.get(0).getRowError() != null) {
+            logResponseError(operationResponses.get(0).getRowError());
         }
+//        for(OperationResponse operationResponse : operationResponses) {
+//            if (operationResponse.getRowError() != null) {
+//                logResponseError(operationResponse.getRowError());
+//            }
+//        }
         return isOk;
     }
 

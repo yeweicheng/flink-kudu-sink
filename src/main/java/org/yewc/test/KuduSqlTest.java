@@ -11,6 +11,7 @@ import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduEntity;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduTableInfo;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.kudu.Type;
@@ -78,8 +79,14 @@ public class KuduSqlTest {
 
 		tableEnv.registerDataStream("my_kudu_source", stream, "dt,system_default_id,productid,deviceid,imei,imsi,time,appkey,channelid,platformid,version,osversion,eventname,eventidentifier,statistic,server_time,mid,uuid,deviceid2,kugouid,fanxid,p1,p2,actorid,roomid,isfollower,livetype,plugin,p3");
 
+		TableSchema.Builder schameBuilder = TableSchema.builder();
+		for (int i = 0; i < fieldNames.length; i++) {
+			schameBuilder.field(fieldNames[i], fieldTypes[i]);
+		}
+
 		KuduEntity entity = new KuduEntity();
 		entity.setKuduMasters(KUDU_MASTER);
+		entity.setSchema(schameBuilder.build());
 		entity.setTableInfo(tableInfo);
 		entity.setFlushInterval(1000);
 		entity.setMutationBufferSpace(1000);
