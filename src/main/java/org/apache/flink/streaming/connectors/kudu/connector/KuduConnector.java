@@ -109,7 +109,7 @@ public class KuduConnector implements AutoCloseable {
             counter++;
 
             if (counter == mutationBufferSpace) {
-                asyncSession.close().addCallback(new ResponseCallback()).join();
+                handleErrorResponse(asyncSession.close().addCallback(new ResponseCallback()).join());
                 counter = 0;
             }
         } else {
@@ -124,7 +124,7 @@ public class KuduConnector implements AutoCloseable {
             counter++;
 
             if (counter == mutationBufferSpace) {
-                processResponse(session.close());
+                handleErrorResponse(processResponse(session.close()));
                 counter = 0;
             }
         }
@@ -158,6 +158,12 @@ public class KuduConnector implements AutoCloseable {
 //            }
 //        }
         return isOk;
+    }
+
+    private void handleErrorResponse(boolean isOk) throws Exception {
+        if (!isOk) {
+            throw new RuntimeException("can not lose any row, must restart and reload data again");
+        }
     }
 
     private void logResponseError(RowError error) {
