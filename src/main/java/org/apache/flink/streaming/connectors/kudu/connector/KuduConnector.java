@@ -152,12 +152,10 @@ public class KuduConnector implements AutoCloseable {
         RowError error;
         for(OperationResponse operationResponse : operationResponses) {
             error = operationResponse.getRowError();
-            if (error != null) {
+            if (error != null && !error.getErrorStatus().isAlreadyPresent()) {
                 logResponseError(error);
-                if (!error.getErrorStatus().isAlreadyPresent()) {
-                    isOk = false;
-                    break;
-                }
+                isOk = false;
+                break;
             }
         }
         return isOk;
