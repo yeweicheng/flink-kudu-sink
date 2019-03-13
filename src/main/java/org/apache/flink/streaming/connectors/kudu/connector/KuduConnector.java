@@ -162,7 +162,7 @@ public class KuduConnector implements AutoCloseable {
 
     private void handleErrorResponse(String result) throws Exception {
         if (result != null) {
-            throw new RuntimeException("can not lose any row, must restart and reload data again");
+            throw new RuntimeException("can not lose any row, must restart and reload data again. \n" + result);
         }
     }
 
