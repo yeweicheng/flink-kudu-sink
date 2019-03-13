@@ -147,33 +147,34 @@ public class KuduConnector implements AutoCloseable {
         LOG.warn("kudu client close finished");
     }
 
-    private Boolean processResponse(List<OperationResponse> operationResponses) {
-        boolean isOk = true;
+    private String processResponse(List<OperationResponse> operationResponses) {
+        String result = null;
         RowError error;
         for(OperationResponse operationResponse : operationResponses) {
             error = operationResponse.getRowError();
             if (error != null && !error.getErrorStatus().isAlreadyPresent()) {
-                logResponseError(error);
-                isOk = false;
+                result = logResponseError(error);
                 break;
             }
         }
-        return isOk;
+        return result;
     }
 
-    private void handleErrorResponse(boolean isOk) throws Exception {
-        if (!isOk) {
+    private void handleErrorResponse(String result) throws Exception {
+        if (result != null) {
             throw new RuntimeException("can not lose any row, must restart and reload data again");
         }
     }
 
-    private void logResponseError(RowError error) {
-        LOG.error("Error {} on {}: {} ", error.getErrorStatus(), error.getOperation(), error.toString());
+    private String logResponseError(RowError error) {
+        String result = String.format("Error %s on %s: %s ", error.getErrorStatus(), error.getOperation(), error.toString());
+        LOG.error(result);
+        return result;
     }
 
-    private class ResponseCallback implements Callback<Boolean, List<OperationResponse>> {
+    private class ResponseCallback implements Callback<String, List<OperationResponse>> {
         @Override
-        public Boolean call(List<OperationResponse> operationResponses) {
+        public String call(List<OperationResponse> operationResponses) {
             return processResponse(operationResponses);
         }
     }
