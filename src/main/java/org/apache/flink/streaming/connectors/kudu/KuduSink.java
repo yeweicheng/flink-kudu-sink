@@ -16,6 +16,7 @@
  */
 package org.apache.flink.streaming.connectors.kudu;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
@@ -32,6 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KuduSink<OUT> extends RichSinkFunction<OUT> {
 
@@ -44,6 +47,8 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     private SessionConfiguration.FlushMode flushMode = SessionConfiguration.FlushMode.MANUAL_FLUSH;
     private int flushInterval = 1000;
     private int mutationBufferSpace = 1000;
+    private Map<Integer, Integer> columnMapping;
+    private Integer columnSize;
 
     private transient KuduConnector tableContext;
 
@@ -124,6 +129,20 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
         return this;
     }
 
+    public KuduSink<OUT> setColumnMapping(String columnMappingIndex, Integer columnSize) {
+        this.columnSize = columnSize;
+        if (StringUtils.isNotBlank(columnMappingIndex) && columnSize > 0) {
+            String[] indexs = columnMappingIndex.split(";");
+            this.columnMapping = new HashMap<>(indexs.length);
+            String[] temp;
+            for (int i = 0; i < indexs.length; i++) {
+                temp = indexs[i].split("=");
+                columnMapping.put(Integer.valueOf(temp[1]), Integer.valueOf(temp[0]));
+            }
+        }
+        return this;
+    }
+
     @Override
     public void open(Configuration parameters) throws IOException {
         startTableContext();
@@ -144,10 +163,25 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
             if (row == null) {
                 return;
             }
-			KuduRow kuduRow = new KuduRow(((Row) row).getArity());
-			for (int i = 0; i < ((Row) row).getArity(); i++) {
-				kuduRow.setField(i, ((Row) row).getField(i));
-			}
+
+			KuduRow kuduRow = null;
+            if (columnMapping == null) {
+                int length = ((Row) row).getArity();
+                kuduRow = new KuduRow(length);
+                for (int i = 0; i < length; i++) {
+                    kuduRow.setField(i, ((Row) row).getField(i));
+                }
+            } else {
+                kuduRow = new KuduRow(columnSize);
+                for (int i = 0; i < columnSize; i++) {
+                    if (columnMapping.containsKey(i)) {
+                        kuduRow.setField(i, ((Row) row).getField(columnMapping.get(i)));
+                    } else {
+                        kuduRow.setField(i, KuduRow.getIgnoreValue());
+                    }
+                }
+            }
+
             tableContext.writeRow(kuduRow, consistency, writeMode);
         } catch (Exception e) {
             if (tableInfo.isErrorBreak()) {

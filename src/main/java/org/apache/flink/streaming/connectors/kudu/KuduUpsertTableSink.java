@@ -15,7 +15,7 @@ import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
+public class KuduUpsertTableSink implements UpsertStreamTableSink<Row> {
 
     private KuduEntity kuduEntity;
     private KuduTableInfo tableInfo;
@@ -23,7 +23,7 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
     private String[] fieldNames;
     private TypeInformation[] fieldTypes;
 
-    public FxKuduUpsertTableSink(KuduEntity kuduEntity) {
+    public KuduUpsertTableSink(KuduEntity kuduEntity) {
 
         Preconditions.checkNotNull(kuduEntity.getKuduMasters(), "kuduMasters could not be null");
         this.kuduEntity = kuduEntity;
@@ -54,7 +54,9 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
                 .returns(new RowTypeInfo(this.schema.getFieldTypes(), this.schema.getFieldNames()));
         KuduSink.addSink(dataStream).init(this.kuduEntity.getKuduMasters(), this.tableInfo,
                 this.kuduEntity.getConsistency(), this.kuduEntity.getWriteMode())
-        .setFlushInterval(this.kuduEntity.getFlushInterval()).setMutationBufferSpace(this.kuduEntity.getMutationBufferSpace());
+                .setFlushInterval(this.kuduEntity.getFlushInterval())
+                .setMutationBufferSpace(this.kuduEntity.getMutationBufferSpace())
+                .setColumnMapping(this.kuduEntity.getColumnMappingIndex(), this.kuduEntity.getColumnSize());
     }
 
     @Override
@@ -85,7 +87,7 @@ public class FxKuduUpsertTableSink implements UpsertStreamTableSink<Row> {
             this.schema = builder.build();
         }
 
-        FxKuduUpsertTableSink kuduSink = new FxKuduUpsertTableSink(this.kuduEntity);
+        KuduUpsertTableSink kuduSink = new KuduUpsertTableSink(this.kuduEntity);
         kuduSink.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
         kuduSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
 

@@ -12,6 +12,8 @@ public class KuduEntity {
     private TableSchema schema;
     private int flushInterval = 1000;
     private int mutationBufferSpace = 1000;
+    private String columnMappingIndex;
+    private Integer columnSize;
 
 
     public String getKuduMasters() {
@@ -68,5 +70,21 @@ public class KuduEntity {
 
     public void setTableInfo(KuduTableInfo tableInfo) {
         this.tableInfo = tableInfo;
+    }
+
+    public String getColumnMappingIndex() {
+        return columnMappingIndex;
+    }
+
+    public void setColumnMappingIndex(String columnMappingIndex) {
+        this.columnMappingIndex = columnMappingIndex;
+    }
+
+    public Integer getColumnSize() {
+        return columnSize;
+    }
+
+    public void setColumnSize(Integer columnSize) {
+        this.columnSize = columnSize;
     }
 }

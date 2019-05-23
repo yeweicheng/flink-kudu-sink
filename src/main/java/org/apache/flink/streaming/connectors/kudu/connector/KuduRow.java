@@ -134,4 +134,10 @@ public class KuduRow extends Row {
     public String toString() {
         return blindMap().toString();
     }
+
+    public static IgnoreValue getIgnoreValue() {
+        return new IgnoreValue();
+    }
+
+    public static class IgnoreValue {}
 }

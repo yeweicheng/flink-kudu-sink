@@ -92,7 +92,7 @@ public final class KuduMapper {
             Object value = row.getField(i);
             if (value == null) {
                 partialRow.setNull(columnName);
-            } else {
+            } else if (!(value instanceof KuduRow.IgnoreValue)) {
                 Type type = schema.getColumnByIndex(i).getType();
                 switch (type) {
                     case STRING:
