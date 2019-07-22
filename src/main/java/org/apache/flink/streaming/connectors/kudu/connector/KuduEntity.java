@@ -12,6 +12,7 @@ public class KuduEntity {
     private TableSchema schema;
     private int flushInterval = 1000;
     private int mutationBufferSpace = 1000;
+    private long timeout = 60000;
     private String columnMappingIndex;
     private Integer columnSize;
 
@@ -86,5 +87,13 @@ public class KuduEntity {
 
     public void setColumnSize(Integer columnSize) {
         this.columnSize = columnSize;
+    }
+
+    public long getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+        this.timeout = timeout;
     }
 }

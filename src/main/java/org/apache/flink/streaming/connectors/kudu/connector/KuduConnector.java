@@ -42,12 +42,20 @@ public class KuduConnector implements AutoCloseable {
     private int mutationBufferSpace = 1000;
 
     public KuduConnector(String kuduMasters, KuduTableInfo tableInfo) throws IOException {
-        client = client(kuduMasters);
+        client = client(kuduMasters, 600000);
         table = table(tableInfo);
     }
 
-    private AsyncKuduClient client(String kuduMasters) {
-        return new AsyncKuduClient.AsyncKuduClientBuilder(kuduMasters).build();
+    public KuduConnector(String kuduMasters, KuduTableInfo tableInfo, long timeout) throws IOException {
+        client = client(kuduMasters, timeout);
+        table = table(tableInfo);
+    }
+
+    private AsyncKuduClient client(String kuduMasters, long timeout) {
+        return new AsyncKuduClient.AsyncKuduClientBuilder(kuduMasters)
+                .defaultOperationTimeoutMs(timeout)
+                .defaultSocketReadTimeoutMs(timeout)
+                .build();
     }
 
     private KuduTable table(KuduTableInfo infoTable) throws IOException {

@@ -56,7 +56,8 @@ public class KuduUpsertTableSink implements UpsertStreamTableSink<Row> {
                 this.kuduEntity.getConsistency(), this.kuduEntity.getWriteMode())
                 .setFlushInterval(this.kuduEntity.getFlushInterval())
                 .setMutationBufferSpace(this.kuduEntity.getMutationBufferSpace())
-                .setColumnMapping(this.kuduEntity.getColumnMappingIndex(), this.kuduEntity.getColumnSize());
+                .setColumnMapping(this.kuduEntity.getColumnMappingIndex(), this.kuduEntity.getColumnSize())
+                .setTimeout(this.kuduEntity.getTimeout());
     }
 
     @Override

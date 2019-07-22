@@ -47,6 +47,7 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     private SessionConfiguration.FlushMode flushMode = SessionConfiguration.FlushMode.MANUAL_FLUSH;
     private int flushInterval = 1000;
     private int mutationBufferSpace = 1000;
+    private long timeout = 60000;
     private Map<Integer, Integer> columnMapping;
     private Integer columnSize;
 
@@ -143,6 +144,11 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
         return this;
     }
 
+    public KuduSink<OUT> setTimeout(long timeout) {
+        this.timeout = timeout;
+        return this;
+    }
+
     @Override
     public void open(Configuration parameters) throws IOException {
         startTableContext();
@@ -150,7 +156,7 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
 
     private void startTableContext() throws IOException {
         if (tableContext != null) return;
-        tableContext = new KuduConnector(kuduMasters, tableInfo)
+        tableContext = new KuduConnector(kuduMasters, tableInfo, timeout)
                 .setFlushMode(flushMode)
                 .setMutationBufferSpace(mutationBufferSpace)
                 .setFlushInterval(flushInterval);
