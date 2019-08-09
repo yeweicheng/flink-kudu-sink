@@ -36,7 +36,7 @@ public class KuduConnector implements AutoCloseable {
     private KuduTable table;
     private AsyncKuduSession asyncSession;
     private KuduSession session;
-    private long counter = 0;
+    public long counter = 0;
     private SessionConfiguration.FlushMode flushMode = SessionConfiguration.FlushMode.MANUAL_FLUSH;
     private int flushInterval = 1000;
     private int mutationBufferSpace = 1000;

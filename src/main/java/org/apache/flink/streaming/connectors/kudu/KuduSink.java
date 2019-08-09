@@ -17,9 +17,16 @@
 package org.apache.flink.streaming.connectors.kudu;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kudu.connector.KuduConnector;
@@ -33,10 +40,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-public class KuduSink<OUT> extends RichSinkFunction<OUT> {
+public class KuduSink<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
 
     private static final Logger LOG = LoggerFactory.getLogger(KuduOutputFormat.class);
 
@@ -52,6 +61,10 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     private Integer columnSize;
 
     private transient KuduConnector tableContext;
+
+    private ListState<Row> rowListState;
+    private List<Row> bufferRows = new ArrayList<>();
+    private int counter = 0;
 
     public KuduSink() {}
 
@@ -152,6 +165,17 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
     @Override
     public void open(Configuration parameters) throws IOException {
         startTableContext();
+
+        // flush buffer
+        LOG.info("reload state size: " + bufferRows.size());
+        try {
+            for (int i = 0; i < bufferRows.size(); i++) {
+                invoke((OUT) bufferRows.get(i));
+            }
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+        bufferRows.clear();
     }
 
     private void startTableContext() throws IOException {
@@ -162,6 +186,33 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
                 .setFlushInterval(flushInterval);
     }
 
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        synchronized (rowListState) {
+            LOG.info("snapshot state size: " + counter);
+        }
+    }
+
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+//        StateTtlConfig ttlConfig = StateTtlConfig
+//                .newBuilder(Time.seconds(60))
+//                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+//                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+//                .cleanupFullSnapshot()
+//                .build();
+
+        ListStateDescriptor<Row> sd = new ListStateDescriptor<Row>("buffer-row", Row.class);
+//        sd.enableTimeToLive(ttlConfig);
+
+        rowListState = context.getOperatorStateStore().getListState(sd);
+
+        if (context.isRestored()) {
+            for (Row row : rowListState.get()) {
+                bufferRows.add(row);
+            }
+        }
+    }
 
     @Override
     public void invoke(OUT row) throws Exception {
@@ -188,7 +239,15 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
                 }
             }
 
+            rowListState.add((Row) row);
+            counter++;
             tableContext.writeRow(kuduRow, consistency, writeMode);
+            if (tableContext.counter == 0) {
+                synchronized (rowListState) {
+                    rowListState.clear();
+                    counter = 0;
+                }
+            }
         } catch (Exception e) {
             if (tableInfo.isErrorBreak()) {
                 throw new IOException(row.toString() + "\n" + e.getLocalizedMessage(), e);
@@ -203,6 +262,10 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> {
         if (this.tableContext == null) return;
         try {
             this.tableContext.close();
+            synchronized (rowListState) {
+                rowListState.clear();
+                counter = 0;
+            }
         } catch (Exception e) {
             throw new IOException(e.getLocalizedMessage(), e);
         }
