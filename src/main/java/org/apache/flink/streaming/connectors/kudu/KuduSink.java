@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -45,7 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class KuduSink<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
+public class KuduSink<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction, CheckpointListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(KuduOutputFormat.class);
 
@@ -195,12 +196,12 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> implements Checkpointed
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-//        StateTtlConfig ttlConfig = StateTtlConfig
-//                .newBuilder(Time.seconds(60))
-//                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-//                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
-//                .cleanupFullSnapshot()
-//                .build();
+        StateTtlConfig ttlConfig = StateTtlConfig
+                .newBuilder(Time.seconds(60))
+                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+                .cleanupFullSnapshot()
+                .build();
 
         ListStateDescriptor<Row> sd = new ListStateDescriptor<Row>("buffer-row", Row.class);
 //        sd.enableTimeToLive(ttlConfig);
@@ -215,7 +216,12 @@ public class KuduSink<OUT> extends RichSinkFunction<OUT> implements Checkpointed
     }
 
     @Override
-    public void invoke(OUT row) throws Exception {
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        LOG.debug("current checkpoint id: " + checkpointId);
+    }
+
+    @Override
+    public void invoke(OUT row, Context context) throws Exception {
         try {
             if (row == null) {
                 return;
